@@ -1,0 +1,268 @@
+---
+title: "Awards Analysis"
+author: "McKade Thomas"
+date: "10/30/2020"
+abstract: "Awards Analysis"
+output: word_document
+bibliography: ["awards.bib"]
+biblio-style: "apalike"
+link-citations: true
+nocite: "@*"
+---
+
+
+
+```{r, include=FALSE}
+library(ggplot2)
+library(knitr)
+library(utils)
+library(rmarkdown)
+```
+
+
+
+```{r, include=FALSE}
+# url for data: https://www.sheffield.ac.uk/mash/statistics/datasets
+awards <- read.csv("C:/Users/mckad/Documents/BYU Coursework/Fall 2020/Stat435/Binomial Analysis/Awards_R.csv",header=TRUE)
+
+
+#Cast char to factors
+awards$prog <- factor(awards$prog, levels=1:3, labels=c("General", "Academic", "Vocational"))
+
+awards$id <- factor(awards$id)
+str(awards)
+```
+# Table of Contents
+Introduction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+
+Explanation and Exploration of the data. . . . . . . . . . . . . . . . . . . . . 3
+
+Methodology for Analysis . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+
+Modeling . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+
+Results  . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+
+Conclusion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+
+\newpage
+
+# Introduction
+  At a certain high school the school board is interested in knowing what factors
+were affecting the number of awards their students would receive. They randomly
+sampled 200 students and included explanatory variables of the program the 
+student was in as well as a score they received on a generalized math 
+assessment. The problem at hand is this, are the factors of program and math
+score significant in predicting the number of awards students will receive [@DataSource]?
+
+  The methods used to analyze this problem include a poisson analysis using
+generalized linear models as well as analysis of variance analyzing both
+main and interaction effects of these predictor variables. The goal of this
+report is to establish the findings of these analyses and produce prediction
+metrics for number of awards, with comments on the effectiveness of these
+predictions. An alpha level of 0.05 will be used in determining the significance
+of either the main or interaction effects of the explanatory variables on the
+response: number of awards earned.
+
+
+# Explanation and Exploration of the Data
+  As aforementioned, 200 students were randomly sampled with three primary factors
+being recorded for each student: the number of awards which is a quantitative 
+response variable, the program the student is in seperated into three categories 
+(General, Academic, or Vocational) which serves as a categorical explanatory variable,
+and the score they received on a particular math test which serves as a quantitative 
+response variable.
+
+  In exploring the data, it appears that students that were enrolled in the Academic program
+seemed to receive more awards than the other two programs (Figure 1). In fact, all 
+students who received more than 3 awards were enrolled in an academic program. Similarly,
+it is also important to note that all students who received more than three awards had
+math scores higher than 60, and a trend can be depicted of higher math scores equating to
+more awards received (Figure 2).
+
+```{r, echo=FALSE, fig.cap = "Figure 1: Numberr of awards per student at a certain high school based on program enrollment"}
+#Examine the Effect of Program
+ggplot(awards, aes(fill=prog, x=num_awards)) + 
+    geom_histogram(position="stack",binwidth=.5) +
+    labs(title="Barchart of Number of Awards per Student",
+         x = "Number of Awards", y = "Frequency")
+```
+
+
+
+```{r, echo=FALSE, fig.cap = "Figure 2: Number of awards per student at a certain high school based on math score."}
+#Examine the effect of math
+a_plot <- ggplot(awards, aes(x=num_awards, y=math,color=prog))
+m_p <- a_plot + geom_point(position=position_jitter())
+m_p <- m_p + labs(title="Scatter Chart of Number of Awards per Student",
+         x = "Number of Awards", y = "Math Score")
+
+m_p
+```
+
+
+  These important features in the data lead us to believe that there may be an interaction
+between math scores and program enrollment in producing the most awards received. This 
+would lead to the inference that perhaps students enrolled in a particular program also
+tend to score higher on this particular math assessment. In viewing this interaction, it
+does appear that students who scored well on the highest on the math assessment were 
+also usually enrolled in the academic program, the program that also seemingly accounted
+for students who received the highest number of awards among the three programs (Figure 3).
+
+
+```{r, echo=FALSE, fig.cap="Figure 3: Math Scores of 200 students at a certain high school basesd on their program type"}
+#Look at interaction Effect
+ggplot(awards, aes(x = prog, y = math, color = prog)) + geom_boxplot() + 
+  labs(title="Boxplot of Math Score Based on Program Type", x="Program",y="Math Score")
+```
+
+# Methodology for Analysis
+A common type of analysis for count data (which is what our response variable number of
+awards is for this dataset) is Poisson regression, which will help us know which of our
+explanatory variables, program and math score, is the best predictor. It should also be
+noted that Poisson regression is best for events that occur less often, like number of
+accidents at a certain intersection in a year, as opposed to events occurring more often
+thus having a larger mean which may follow a normal distribution more closely. This makes 
+our response variable ideal for a Poisson regression since it can occur only a few times a 
+year for each student. Assumptions that we have to make about our data in order to fit a 
+model such as this for Poisson regression include the following and will be addressed in
+a later section of the report [@Method1]:
+  -response variable is count data
+  -all counts are positive
+  -the mean and the variance of the counts are equal
+  -each observation is independent
+
+The method we will use for Poisson regression will involve creating a Poisson generalized linear model with a natural log link function, which forces all predictor values to be 
+positive, a great trait for count data such as number of awards [@Method2]. After fitting a 
+generalized linear model to our data, we will be able to examine the effect that each of
+our explanatory variables may have in predicting number of awards students will receive.
+
+
+
+```{r, include=FALSE}
+mean(awards$num_awards)
+var(awards$num_awards)
+
+mean(sqrt(awards$num_awards))
+var(sqrt(awards$num_awards))
+
+ggplot(data = awards, aes(x = prog, y = sqrt(math), color = prog)) + geom_boxplot() + labs(title="Distribution of Math Scores from a particular assessment on a total of 200 students seperated by which learning program they were in (1, 2, or 3)", x="Program",y="Math Score")
+```
+
+# Modeling the Data
+  As aforementioned, the model chosen for analysis of the data is a Poisson regression fit
+with a generalized linear model with natural log link function, which is a very common
+type of method used for count data. This model was selected because all assumptions appear 
+to have been satisfied for using this method and our data is count data with low occurrences:
+  -The assumptions of our response variable being positive count data is met with number of
+  awards being used as the y-variable. 
+  -The mean of number of awards was 0.97 with variance 1.09. Because these values are very
+  similar, we will assume that the condition of equal mean and variance has been met*.
+  -Because the data was collected randomly, we will assume that there is independence
+  between each observation in the data set.
+
+  With all assumptions satisfied for performing the evaluation, we can now examine the details,
+effectiveness, and implications of the model. Because it was discovered in the examination
+of the data that the academic program seems to be producing both the highest number of awards and math scores, the data was re-leveled so that each coefficient in the model is compared to it. 
+
+*Note: Had there been concern about mean and variance for the count data not being 
+equivalent, we could have performed a transformation on the data. Because a square root
+and log transformation did not produce a mean and variance that were closer in equivalence,
+no transformation was performed. The choice to exclude a transformation was also based on a
+decision to allow for the easiest of interpretations of the results for the school board, so
+that changes to both programs and math instruction could be made efficiently.
+
+
+\newpage
+
+```{r, include = FALSE}
+## Poisson Genearlized Linear Model
+#Re-level the data to compare all to program 2
+awards$prog_rel <- relevel(awards$prog, ref = "Academic")
+
+#Model with main effects only
+pois_model1 <- glm(num_awards ~ prog_rel+math, data = awards, family = "poisson")
+anova(pois_model1)
+summary(pois_model1)
+exp(pois_model1$coefficients)
+
+residuals1 <- resid(pois_model1)
+qqnorm(residuals1,main="Normal Q-Q Plot of the Residuals for Model 1")
+```
+
+
+```{r,include=FALSE}
+#Model with all main effects/interactions
+pois_model2 <- glm(num_awards ~ prog_rel+math+(prog_rel*math), data = awards, family = poisson)
+anova(pois_model2)
+summary(pois_model2)
+exp(pois_model2$coefficients)
+
+
+residuals2 <- resid(pois_model2)
+qqnorm(residuals2, main="Normal Q-Q Plot of the Residuals for Model 2")
+```
+
+
+# Results
+  The model compares each level of program and math score to the mean number of award received by those in the academic program, which based on the exploration of the data was concluded produce both the most number of awards and highest math scores. Thus, each coefficient is determined to be significant based on how it performs compared to the factor of being in the academic program [@Method3].
+  
+  The first model included both explanatory variables, math score and program, without an interaction effect (see Table 1). The results suggest that being in an academic program and having a high math score will both significantly improve the number of awards a student will receive (at an $\alpha$ = .05). Enrollment in a general program also proved to be significant, though it had less of an effect than math score or academic programs.
+  
+  Using a second model that included all main and interaction effects between the two explanatory variables, none of the interaction effects had significance in the model while both math and being in an academic program still came back significant, leading us to conclude that there may not be a significant interaction between the two explanatory variables, when compared with the effect of solely being in an academic program (see Table 2).
+
+  Based on the model coefficients, it appears that both the program a student is in as well
+as their performance on the math evaluation have significant, positive effects on the 
+number of awards they will receive. Specifically, it appears that a student being in the
+academic program will improve their chances of receiving an award more than the both the
+other programs as well as having a better math score. It also appears that just improving
+their math score will also have a positive effect on number of awards received as well.
+
+  It does not appear that there is a significant interaction effect between math and program. This is due to the fact that p-value was greater than a $\alpha$ of .05 for all interaction effects in the second model and each time the interaction was added to the model it decreased the significance of the other terms. 
+  
+  It should also be noted that in analyzing all of these models and coefficients, a back-transformation was performed by exponentiating the model coefficients. This is because the poisson generalized linear model uses a natural logarithm link function. To properly analyze the model coefficients, we need to reverse this transformation through exponentiation. 
+
+
+
+
+# Summary of Conclusions
+  Several factors seem to be important in considering what will help students receive more awards. The number one factor for improving number of awards received is having a student enroll in the academic program instead of the vocational or general, though general was preferred over vocational. This means that if the school board wants to see in improvement in awards, the most efficient way to do this is to encourage more students to enroll in the academic program, then a general program, then a vocational (See Figure 4).
+  
+```{r,echo = FALSE, fig.cap="Figure 4: Predicted number of awards a student will receive at a certain high school based on a Poisson regression model with explantory variables math score and program enrollment."}
+#Get predictions
+aw.pred1 <- predict(pois_model2,type="response")
+
+#Compare num_awards to predicted values
+ggplot(awards, aes(x=math, y=aw.pred1,color=prog)) +geom_line(size=1) +
+    labs(title="Model Predicted Number of Awards Per Student",
+         x = "Math Score", y = "Predicted Number of Awards")
+```
+
+  
+  Another method that should be considered, though a little less effective, would be to help the students improve their math score. Should the student still want to enroll in a vocational or general program, their chances of receiving awards could still be positively affected by an improvement in their score on the math assessment.
+  
+  Both of these options, enrolling in an academic program or improving their math score, would positively affect the number of awards the student is likely to receive. Thus, the school board should focus on these two solutions when looking for how to improve this metric at the high school.
+  
+# Improvement of the Study
+  Going forward, it would be nice to have a larger sample size in order to ensure that the factors that were found to be significant are indeed good precitors for the number of awards the student will receive. A question I still have for the researcher is what type of awards these are. Being able to factor in different types of awards could also add another layer to this analysis that would perhaps give more accurate predictions based on which type of award the school board would like to see given out in particular.
+
+
+
+
+```{r,include=FALSE}
+knitr::write_bib(c('knitr','stringr'), '', width = 60)
+```
+
+
+\newpage
+
+# Appendix
+```{r ref.label = knitr::all_labels(), echo = TRUE, eval=FALSE}
+head(awards)
+```
+
+
+#Bibliography
+
+
+
